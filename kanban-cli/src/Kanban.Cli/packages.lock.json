@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "kanban.domain": {
+        "type": "Project"
+      },
+      "kanban.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Kanban.Domain": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

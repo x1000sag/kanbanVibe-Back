@@ -1,0 +1,7 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5050:5050"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development

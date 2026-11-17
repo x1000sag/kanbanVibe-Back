@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
+    <EnableNETWorkloads>false</EnableNETWorkloads>
+    <UseWorkloadManifest>false</UseWorkloadManifest>
+    <SkipImportNetSdkWorkloadManifestTargets>true</SkipImportNetSdkWorkloadManifestTargets>
+  </PropertyGroup>
+</Project>

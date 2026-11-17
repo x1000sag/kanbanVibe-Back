@@ -55,3 +55,15 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Kanban / local data
+*.db
+kanban-cli/**/data/board.json.bak
+
+# Spec / tooling
+.specify/local/
+
+# Kanban / local data
+*.db
+kanban-cli/**/data/board.json.bak
+.specify/local/
