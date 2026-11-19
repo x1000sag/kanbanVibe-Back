@@ -11,6 +11,23 @@
 - Комментарии в коде — только там, где это экономит время чтения.
 - Фиксируйте результаты (изменённые файлы, команды, вывод) в сессии.
 
+## Ветки
+
+Модель: `main` ← `development/v1.0.0` ← `feature/*`. Сейчас рабочая ветка фичи — `feature/auth`. Ветка `development/v1.0.0` ведёт линию версии 1.0.0.
+
+- `development/v1.0.0` ответвлять от `main`.
+- Новую `feature/*` ответвлять от `development/v1.0.0`.
+- Ветку задачи ответвлять от текущей `feature/*` (`feature/auth`), не от `main` и не от `development/v1.0.0`.
+- PR агента открывать с base = текущая `feature/*` (сейчас `feature/auth`). В `main` и в `development/*` напрямую не открывать.
+
+Продвижение фичи: ветка задачи → `feature/*` → `development/v1.0.0` → `main`. Каждый шаг — отдельный PR.
+
+## Версии и теги
+
+- Релиз — это git-тег `vMAJOR.MINOR.PATCH`. Тег `v1.0.0` соответствует ветке `development/v1.0.0`.
+- Тег ставит тот, кто выпускает релиз, на коммите `main` после merge `development/v1.0.0` → `main`. Пока версия не выпущена, тег не создавать (настройка CI/CD релизом не является).
+- Push тега `v*.*.*` запускает CD: сборка Windows x86 и GitHub Release с этим архивом. Push в `main` без тега только заливает артефакт, Release не создаёт.
+
 ## Spec-Driven Workflow (Spec Kit)
 
 Источник истины по процессу — `.specify/memory/constitution.md`. Команды Spec Kit — в `.opencode/commands/speckit.*.md` (спец-команды OpenCode).
@@ -59,6 +76,8 @@ MCP — вспомогательный источник. Локальные фа
 - Frontend живёт в репозитории kanbanVibe-front (Vue SPA). Не создавайте каталог `frontend/` в этом репозитории вне отдельной спецификации.
 - Сборка: `dotnet build kanban-cli/Kanban.sln`.
 - Тесты: `dotnet test kanban-cli/Kanban.sln` (или точная команда из skill `run-tests`).
+- CI: `.github/workflows/ci.yml` — сборка и тесты solution на каждый push и pull request.
+- CD: `.github/workflows/cd.yml` — публикация Windows x86 (`win-x86`, framework-dependent) при push в `main` и при теге `v*.*.*`.
 - Запуск API: `dotnet run --project kanban-cli/src/Kanban.Api`.
 - Запуск CLI: `dotnet run --project kanban-cli/src/Kanban.Cli -- <команда>`.
 
