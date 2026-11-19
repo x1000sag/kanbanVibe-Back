@@ -33,5 +33,6 @@
 
 - Iteration 1 failed the acceptance-coverage check: concurrent registration did not say what the losing person sees, ending or expiring access did not show that the account remains, a stopped store did not cover profile reads, and ordinary board reads were only an edge-case bullet. The spec was updated. Those items then passed.
 - Iteration 2 failed testability for a failed sign-in on a nick that does not exist: the event had no allowed reader. The spec now keeps that event off every account journal, including an account created later with the same nick, and makes it readable by the operator. Recheck passed.
+- Review follow-up: refusals are stable error codes, not Russian sentences. The same situation keeps one code; failed sign-in uses one code whether or not the nick exists. Human wording of those codes is outside this backend spec. Recheck passed: no language, framework, call shape, or code literal was added.
 - All items pass. The Input line quotes the request verbatim, including storage and delivery names. Scenarios, functional requirements, and success criteria do not prescribe a language, framework, API, storage product, or packaging filename. Assumptions record the chosen meaning of class C (C2, not a formal certification) and of Boyce–Codd normalization.
 - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
