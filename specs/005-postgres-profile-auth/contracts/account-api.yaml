@@ -1,0 +1,689 @@
+openapi: 3.0.3
+info:
+  title: Учётная запись KanbanVibe
+  version: 1.0.0
+  description: |
+    Контракт серверной фичи `005-postgres-profile-auth`. Это не контракт фронтенда
+    и не описание прежних маршрутов `/api/board` и `/profiles`.
+
+    Несовместимое изменение этого документа делается новой версией, а не тихой правкой
+    полей. Текущая версия живёт под префиксом `/v1`.
+
+    Отказ — JSON с одним полем `code`. Сервер не возвращает фразу для человека,
+    ProblemDetails, пароль, хэш и токен в теле ошибки. Русские формулировки в этом
+    файле написаны для интегратора и оператора. В ответ они не подставляются.
+    Это осознанное расхождение с буквальным текстом принципа III конституции;
+    обоснование — в `plan.md`, раздел Complexity Tracking.
+
+    Второй успешный вход того же ника не отзывает предыдущий токен.
+servers:
+  - url: http://localhost:5050
+    description: Локальный HTTP из quickstart
+tags:
+  - name: health
+  - name: accounts
+  - name: sessions
+  - name: board
+  - name: journal
+paths:
+  /v1/health/ready:
+    get:
+      tags: [health]
+      summary: Готовность хранилища
+      security: []
+      responses:
+        '200':
+          description: База принимает запрос. Тело пустое.
+        '503':
+          description: Хранилище недоступно.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: store_unavailable
+  /v1/accounts:
+    post:
+      tags: [accounts]
+      summary: Создать учётную запись
+      security: []
+      description: |
+        Вход этим вызовом не открывается. Пароль в ответе не возвращается.
+        Одновременные создания одного ника оставляют одну учётку.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccount'
+      responses:
+        '201':
+          description: Учётка создана. Имя совпадает с ником.
+          headers:
+            Location:
+              description: Путь профиля `/v1/accounts/{nick}`. Чтение всё равно требует доступ.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+              example:
+                nick: marina
+                displayName: marina
+        '400':
+          description: Ник недопустим, пароль недопустим или тело не той формы.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                nick:
+                  value:
+                    code: nick_invalid
+                password:
+                  value:
+                    code: password_invalid
+                shape:
+                  value:
+                    code: request_invalid
+        '409':
+          description: Ник занят.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: nick_taken
+        '503':
+          description: Хранилище недоступно. Частичной учётки нет.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: store_unavailable
+  /v1/sessions:
+    post:
+      tags: [sessions]
+      summary: Войти
+      security: []
+      description: |
+        Неуспех всегда `sign_in_failed`, есть ник в базе или нет.
+        Новый токен не гасит ранее выданные токены этого ника.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignIn'
+      responses:
+        '200':
+          description: Доступ выдан не дольше чем на 12 часов.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Тело не той формы.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: request_invalid
+        '401':
+          description: Пара не подошла. Один и тот же код.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: sign_in_failed
+        '503':
+          description: Хранилище недоступно. Учётка не создаётся и не меняется.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: store_unavailable
+  /v1/sessions/current:
+    delete:
+      tags: [sessions]
+      summary: Завершить текущий доступ
+      description: Гасит только доступ предъявленного токена. Другие токены того же ника остаются.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Этот доступ завершён. Учётка, доска и журнал на месте.
+        '401':
+          description: Нет действующего доступа.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: no_active_access
+        '503':
+          description: Хранилище недоступно. Доступ не помечен завершённым наполовину.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: store_unavailable
+  /v1/accounts/{nick}:
+    get:
+      tags: [accounts]
+      summary: Прочитать свой профиль и свою доску
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Nick'
+      responses:
+        '200':
+          description: Ник, имя и ровно одна доска. Пароля в теле нет.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/NoAccess'
+        '403':
+          $ref: '#/components/responses/Foreign'
+        '503':
+          $ref: '#/components/responses/StoreDown'
+  /v1/accounts/{nick}/display-name:
+    put:
+      tags: [accounts]
+      summary: Сменить отображаемое имя
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Nick'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisplayNameChange'
+      responses:
+        '200':
+          description: Имя записано в одном месте. Ник прежний.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '400':
+          description: Имя недопустимо или тело не той формы.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                name:
+                  value:
+                    code: display_name_invalid
+                shape:
+                  value:
+                    code: request_invalid
+        '401':
+          $ref: '#/components/responses/NoAccess'
+        '403':
+          $ref: '#/components/responses/Foreign'
+        '503':
+          $ref: '#/components/responses/StoreDown'
+  /v1/accounts/{nick}/password:
+    put:
+      tags: [accounts]
+      summary: Сменить пароль
+      description: |
+        Тот же токен после успеха остаётся годным. Ответ без тела и без пароля.
+        Неверный текущий пароль не меняет хэш.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Nick'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChange'
+      responses:
+        '204':
+          description: Пароль заменён. Тело пустое.
+        '400':
+          description: Новый пароль недопустим или тело не той формы.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                password:
+                  value:
+                    code: password_invalid
+                shape:
+                  value:
+                    code: request_invalid
+        '401':
+          $ref: '#/components/responses/NoAccess'
+        '403':
+          description: Чужой ник или текущий пароль неверен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                foreign:
+                  value:
+                    code: foreign_data
+                rejected:
+                  value:
+                    code: password_change_rejected
+        '503':
+          $ref: '#/components/responses/StoreDown'
+  /v1/accounts/{nick}/cards:
+    post:
+      tags: [board]
+      summary: Положить карточку на свою доску
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Nick'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardCreate'
+      responses:
+        '201':
+          description: Карточка создана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '400':
+          description: Карточка недопустима или тело не той формы.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                card:
+                  value:
+                    code: card_invalid
+                shape:
+                  value:
+                    code: request_invalid
+        '401':
+          $ref: '#/components/responses/NoAccess'
+        '403':
+          $ref: '#/components/responses/Foreign'
+        '404':
+          description: Своей колонки с таким именем нет.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: object_missing
+        '503':
+          $ref: '#/components/responses/StoreDown'
+  /v1/accounts/{nick}/cards/{cardId}:
+    delete:
+      tags: [board]
+      summary: Удалить свою карточку
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Nick'
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '204':
+          description: Карточка удалена. Содержимое в доске больше не читается.
+        '401':
+          $ref: '#/components/responses/NoAccess'
+        '403':
+          $ref: '#/components/responses/Foreign'
+        '404':
+          description: Карточки на доске этого ника нет. Чужой id не удаляется.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: object_missing
+        '503':
+          $ref: '#/components/responses/StoreDown'
+  /v1/accounts/{nick}/columns/{columnName}:
+    delete:
+      tags: [board]
+      summary: Удалить свою колонку
+      description: Карточки колонки удаляются вместе с ней и в журнал поименно не копируются.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Nick'
+        - $ref: '#/components/parameters/ColumnName'
+      responses:
+        '204':
+          description: Колонка удалена.
+        '401':
+          $ref: '#/components/responses/NoAccess'
+        '403':
+          $ref: '#/components/responses/Foreign'
+        '404':
+          description: Своей колонки нет.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: object_missing
+        '503':
+          $ref: '#/components/responses/StoreDown'
+  /v1/accounts/{nick}/journal:
+    get:
+      tags: [journal]
+      summary: Прочитать свой журнал
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Nick'
+      responses:
+        '200':
+          description: Только события этой учётки. Пароля в записях нет.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Journal'
+        '401':
+          $ref: '#/components/responses/NoAccess'
+        '403':
+          $ref: '#/components/responses/Foreign'
+        '503':
+          $ref: '#/components/responses/StoreDown'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Заголовок `Authorization: Bearer` и токен из входа.
+        Поле `error_description` сервер не шлёт. Токен — не пароль.
+  parameters:
+    Nick:
+      name: nick
+      in: path
+      required: true
+      description: |
+        Ник как он хранится, после процентного кодирования пути.
+        Сравнение точное, регистр значим. Краевые пробелы в пути не снимаются:
+        их не должно остаться после создания.
+      schema:
+        type: string
+    CardId:
+      name: cardId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ColumnName:
+      name: columnName
+      in: path
+      required: true
+      description: Имя колонки. Для новой доски это `ToDo`, `InProgress` или `Done`.
+      schema:
+        type: string
+  responses:
+    NoAccess:
+      description: Нет действующего доступа. Один код на отсутствие, порчу, истечение и завершение.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: no_active_access
+    Foreign:
+      description: Чужие данные. Содержимого цели и пароля нет.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: foreign_data
+    StoreDown:
+      description: Хранилище недоступно. Состояние не меняется наполовину.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: store_unavailable
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+    ErrorCode:
+      type: string
+      description: |
+        Устойчивый код. В теле ответа есть только он.
+
+        Русские формулировки ниже — документация. Сервер их не возвращает.
+
+        | Код | Смысл для человека |
+        | --- | --- |
+        | nick_taken | Ник уже занят. Прежняя учётка не изменилась. |
+        | nick_invalid | Ник пустой или длиннее 64 символов. Значение не обрезано. |
+        | password_invalid | Пароль пустой или длиннее 1024 символов. |
+        | sign_in_failed | Вход не удался. По коду не видно, есть ли ник. |
+        | no_active_access | Нет действующего доступа. |
+        | foreign_data | Нельзя читать или менять чужие данные. |
+        | display_name_invalid | Имя пустое или длиннее 128 символов. |
+        | password_change_rejected | Смена пароля отклонена. Действующий пароль прежний. |
+        | store_unavailable | Хранилище недоступно. |
+        | request_invalid | Тело запроса не той формы. |
+        | card_invalid | Карточка не соответствует модели доски. |
+        | object_missing | Своя колонка или карточка не найдена. |
+      enum:
+        - nick_taken
+        - nick_invalid
+        - password_invalid
+        - sign_in_failed
+        - no_active_access
+        - foreign_data
+        - display_name_invalid
+        - password_change_rejected
+        - store_unavailable
+        - request_invalid
+        - card_invalid
+        - object_missing
+    CreateAccount:
+      type: object
+      additionalProperties: false
+      required: [nick, password]
+      properties:
+        nick:
+          type: string
+          description: До обрезки краевых пробелов. В базе хранится обрезанное значение.
+        password:
+          type: string
+          description: Не обрезается. В ответе и в базе в открытом виде не появляется.
+    SignIn:
+      type: object
+      additionalProperties: false
+      required: [nick, password]
+      properties:
+        nick:
+          type: string
+        password:
+          type: string
+    Session:
+      type: object
+      additionalProperties: false
+      required: [accessToken, expiresAt]
+      properties:
+        accessToken:
+          type: string
+          description: JWT. Не пароль. Клиент считает его непрозрачным.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Момент UTC, когда доступ уже не действует. Не позже выдачи плюс 12 часов.
+    Identity:
+      type: object
+      additionalProperties: false
+      required: [nick, displayName]
+      properties:
+        nick:
+          type: string
+        displayName:
+          type: string
+    DisplayNameChange:
+      type: object
+      additionalProperties: false
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+    PasswordChange:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+    Profile:
+      type: object
+      additionalProperties: false
+      required: [nick, displayName, board]
+      properties:
+        nick:
+          type: string
+        displayName:
+          type: string
+        board:
+          $ref: '#/components/schemas/Board'
+    Board:
+      type: object
+      additionalProperties: false
+      required: [columns]
+      description: Имени доски нет. Колонки идут по позиции.
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/Column'
+    Column:
+      type: object
+      additionalProperties: false
+      required: [name, cards]
+      properties:
+        name:
+          type: string
+        cards:
+          type: array
+          description: По времени создания, затем по id. Это не правило порядка внутри колонки.
+          items:
+            $ref: '#/components/schemas/Card'
+    Card:
+      type: object
+      additionalProperties: false
+      required: [id, title, tags, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        deadline:
+          type: string
+          nullable: true
+          description: Дата `YYYY-MM-DD` или null.
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        createdAt:
+          type: string
+          format: date-time
+          description: Всемирное время создания.
+    CardCreate:
+      type: object
+      additionalProperties: false
+      required: [columnName, title]
+      properties:
+        columnName:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        deadline:
+          type: string
+          nullable: true
+          description: Только `YYYY-MM-DD`.
+    Journal:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalEvent'
+    JournalEvent:
+      type: object
+      additionalProperties: false
+      required: [occurredAt, nick, type, outcome]
+      description: |
+        `nick` подставлен из учётки при чтении и в строке события не хранится.
+        Пароля, хэша и отображаемого имени в событии нет.
+        `source` есть у входа. `objectName` есть у удаления.
+      properties:
+        occurredAt:
+          type: string
+          format: date-time
+          description: UTC до секунды.
+        nick:
+          type: string
+        type:
+          type: string
+          enum:
+            - sign_in
+            - access_end
+            - password_change
+            - display_name_change
+            - foreign_access_denied
+            - column_deleted
+            - card_deleted
+        outcome:
+          type: string
+          enum: [success, failure]
+        source:
+          type: string
+          nullable: true
+        objectName:
+          type: string
+          nullable: true
