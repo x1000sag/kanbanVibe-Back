@@ -14,21 +14,21 @@ public class RegistrationTests(AccountApiFactory factory)
     [Fact]
     public async Task CreateMarina_Returns201AndLocation()
     {
-        var response = await AccountHttp.CreateAccountAsync(_client, "  marina  ", "любой-пароль");
+        var response = await AccountHttp.CreateAccountAsync(_client, "  marina1  ", "любой-пароль");
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.Equal("/v1/accounts/marina", response.Headers.Location?.ToString());
+        Assert.Equal("/v1/accounts/marina1", response.Headers.Location?.ToString());
 
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal("marina", doc.RootElement.GetProperty("nick").GetString());
-        Assert.Equal("marina", doc.RootElement.GetProperty("displayName").GetString());
+        Assert.Equal("marina1", doc.RootElement.GetProperty("nick").GetString());
+        Assert.Equal("marina1", doc.RootElement.GetProperty("displayName").GetString());
         Assert.False(doc.RootElement.TryGetProperty("password", out _));
     }
 
     [Fact]
     public async Task DuplicateNick_Returns409()
     {
-        await AccountHttp.CreateAccountAsync(_client, "marina", "p1");
-        var dup = await AccountHttp.CreateAccountAsync(_client, "marina", "p2");
+        await AccountHttp.CreateAccountAsync(_client, "dup-nick", "p1");
+        var dup = await AccountHttp.CreateAccountAsync(_client, "dup-nick", "p2");
         Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
         Assert.Equal("nick_taken", await AccountHttp.ReadErrorCodeAsync(dup));
     }
@@ -36,8 +36,8 @@ public class RegistrationTests(AccountApiFactory factory)
     [Fact]
     public async Task MarinaAndMarinaCaseDiffer_TwoAccounts()
     {
-        await AccountHttp.CreateAccountAsync(_client, "marina", "p1");
-        var second = await AccountHttp.CreateAccountAsync(_client, "Marina", "p2");
+        await AccountHttp.CreateAccountAsync(_client, "case-low", "p1");
+        var second = await AccountHttp.CreateAccountAsync(_client, "Case-low", "p2");
         Assert.Equal(HttpStatusCode.Created, second.StatusCode);
     }
 

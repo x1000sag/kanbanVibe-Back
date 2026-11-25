@@ -73,6 +73,19 @@ public sealed class AccountApiFactory : WebApplicationFactory<KanbanHost::Progra
                 CREATE ROLE kanban_app LOGIN PASSWORD '{AppPassword}';
                 CREATE ROLE kanban_operator LOGIN PASSWORD '{OperatorPassword}';
                 GRANT CONNECT ON DATABASE kanban_account TO kanban_migrator, kanban_app, kanban_operator;
+                GRANT CREATE ON DATABASE kanban_account TO kanban_migrator;
+                """;
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        await using (var conn = new NpgsqlConnection(adminConn))
+        {
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                GRANT ALL ON SCHEMA public TO kanban_migrator;
+                GRANT USAGE ON SCHEMA public TO kanban_app, kanban_operator;
+                ALTER SCHEMA public OWNER TO kanban_migrator;
                 """;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -91,6 +104,20 @@ public sealed class AccountApiFactory : WebApplicationFactory<KanbanHost::Progra
             .Options;
         await using var db = new AccountDbContext(options);
         await db.Database.MigrateAsync();
+
+        await using (var conn = new NpgsqlConnection(adminConn))
+        {
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO kanban_app;
+                REVOKE ALL ON TABLE unowned_audit_event FROM kanban_app;
+                GRANT INSERT ON TABLE unowned_audit_event TO kanban_app;
+                REVOKE SELECT ON TABLE unowned_audit_event FROM kanban_app;
+                GRANT SELECT ON TABLE unowned_audit_event TO kanban_operator;
+                """;
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     public async Task StopDatabaseAsync()

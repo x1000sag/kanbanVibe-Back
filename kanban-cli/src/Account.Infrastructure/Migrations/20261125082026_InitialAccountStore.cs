@@ -274,6 +274,7 @@ namespace Account.Infrastructure.Migrations
                 ALTER TABLE account_audit_event OWNER TO kanban_migrator;
                 ALTER TABLE unowned_audit_event OWNER TO kanban_migrator;
 
+                GRANT USAGE ON SCHEMA public TO kanban_migrator, kanban_app, kanban_operator;
                 GRANT SELECT, INSERT, UPDATE, DELETE ON account TO kanban_app;
                 GRANT SELECT, INSERT, UPDATE, DELETE ON board TO kanban_app;
                 GRANT SELECT, INSERT, UPDATE, DELETE ON "column" TO kanban_app;

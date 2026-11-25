@@ -14,4 +14,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname kanban_account <<-E
     CREATE ROLE kanban_app LOGIN PASSWORD '${APP_DB_PASSWORD}';
     CREATE ROLE kanban_operator LOGIN PASSWORD '${OPERATOR_DB_PASSWORD}';
     GRANT CONNECT ON DATABASE kanban_account TO kanban_migrator, kanban_app, kanban_operator;
+    GRANT CREATE ON DATABASE kanban_account TO kanban_migrator;
+    GRANT ALL ON SCHEMA public TO kanban_migrator;
+    ALTER SCHEMA public OWNER TO kanban_migrator;
 EOSQL

@@ -13,8 +13,8 @@ public class BoardTests(AccountApiFactory factory)
     [Fact]
     public async Task CreateCard_OnOwnerBoard()
     {
-        await AccountHttp.CreateAccountAsync(_client, "marina", "secret");
-        var (token, _) = await AccountHttp.SignInAsync(_client, "marina", "secret");
+        await AccountHttp.CreateAccountAsync(_client, "board-own", "secret");
+        var (token, _) = await AccountHttp.SignInAsync(_client, "board-own", "secret");
         AccountHttp.UseToken(_client, token);
 
         var body = new
@@ -25,7 +25,7 @@ public class BoardTests(AccountApiFactory factory)
             tags = new[] { "дом" },
             deadline = "2026-11-20",
         };
-        var response = await _client.PostAsJsonAsync("/v1/accounts/marina/cards", body, AccountHttp.Json);
+        var response = await _client.PostAsJsonAsync("/v1/accounts/board-own/cards", body, AccountHttp.Json);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("2026-11-20", doc.RootElement.GetProperty("deadline").GetString());

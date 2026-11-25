@@ -1,15 +1,13 @@
-using System.Text;
-using Account.Domain;
 using Account.Infrastructure;
 using Kanban.Api.Account;
 using Kanban.Api.Controllers;
 using Kanban.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 
 AccountOptions accountOptions;
 try
@@ -25,38 +23,8 @@ builder.Services.AddSingleton(accountOptions);
 builder.Services.AddAccountStore(accountOptions.AccountConnection);
 builder.Services.AddAccountServices(accountOptions.JwtSigningKey);
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = AccessTokenIssuer.Issuer,
-            ValidateAudience = true,
-            ValidAudience = AccessTokenIssuer.Audience,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(accountOptions.JwtSigningKey)),
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
-        };
-        options.Events = new JwtBearerEvents
-        {
-            OnChallenge = async context =>
-            {
-                context.HandleResponse();
-                await AccountExceptionMiddleware.WriteRefusalAsync(
-                    context.HttpContext,
-                    RefusalCodes.NoActiveAccess,
-                    401);
-            },
-            OnAuthenticationFailed = context =>
-            {
-                context.NoResult();
-                throw new AccountRefusalException(RefusalCodes.NoActiveAccess);
-            },
-        };
-    });
+builder.Services.AddSingleton<IConfigureOptions<JwtBearerOptions>, AccountJwtBearerConfigureOptions>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers()

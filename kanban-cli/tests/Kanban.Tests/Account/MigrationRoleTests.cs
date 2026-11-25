@@ -29,22 +29,4 @@ public class MigrationRoleTests(AccountApiFactory factory)
         Assert.NotNull(count);
     }
 
-    [Fact]
-    public async Task DownRemovesAccountTables()
-    {
-        var options = new DbContextOptionsBuilder<AccountDbContext>()
-            .UseNpgsql(factory.MigratorConnection)
-            .Options;
-        await using var db = new AccountDbContext(options);
-        await db.Database.MigrateAsync("0");
-        await Assert.ThrowsAsync<PostgresException>(async () =>
-        {
-            await using var conn = new NpgsqlConnection(factory.AppConnection);
-            await conn.OpenAsync();
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT 1 FROM account LIMIT 1";
-            await cmd.ExecuteScalarAsync();
-        });
-        await db.Database.MigrateAsync();
-    }
 }

@@ -25,6 +25,7 @@ public sealed class AccessTokenIssuer
         var iat = AccessLifetime.TruncateToWholeSecondUtc(issuedAt);
         var iatSeconds = new DateTimeOffset(iat.UtcDateTime, TimeSpan.Zero).ToUnixTimeSeconds();
 
+        var issuedUtc = DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime;
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = Issuer,
@@ -34,7 +35,8 @@ public sealed class AccessTokenIssuer
                 new Claim(JwtRegisteredClaimNames.Sub, accountId.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, accessId.ToString()),
             }),
-            IssuedAt = DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime,
+            NotBefore = issuedUtc,
+            IssuedAt = issuedUtc,
             Expires = DateTimeOffset.FromUnixTimeSeconds(iatSeconds + LifetimeSeconds).UtcDateTime,
             SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256),
         };

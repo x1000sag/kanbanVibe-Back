@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace Kanban.Tests.Account;
@@ -13,9 +14,9 @@ public class SignInTests(AccountApiFactory factory)
     [Fact]
     public async Task WrongPasswordAndMissingNick_SameSignInFailed()
     {
-        await AccountHttp.CreateAccountAsync(_client, "marina", "secret");
+        await AccountHttp.CreateAccountAsync(_client, "signin-a", "secret");
 
-        var wrong = await _client.PostAsJsonAsync("/v1/sessions", new { nick = "marina", password = "nope" }, AccountHttp.Json);
+        var wrong = await _client.PostAsJsonAsync("/v1/sessions", new { nick = "signin-a", password = "nope" }, AccountHttp.Json);
         var missing = await _client.PostAsJsonAsync("/v1/sessions", new { nick = "no-such-nick", password = "x" }, AccountHttp.Json);
 
         Assert.Equal(HttpStatusCode.Unauthorized, wrong.StatusCode);
@@ -27,10 +28,14 @@ public class SignInTests(AccountApiFactory factory)
     [Fact]
     public async Task Success_ReturnsJwtWithClaims()
     {
-        await AccountHttp.CreateAccountAsync(_client, "marina", "secret");
-        var response = await _client.PostAsJsonAsync("/v1/sessions", new { nick = "marina", password = "secret" }, AccountHttp.Json);
+        var create = await AccountHttp.CreateAccountAsync(_client, "jwt-user", "secret");
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var response = await _client.PostAsJsonAsync("/v1/sessions", new { nick = "jwt-user", password = "secret" }, AccountHttp.Json);
+        var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var (token, expiresAt) = await AccountHttp.SignInAsync(_client, "marina", "secret");
+        using var session = JsonDocument.Parse(body);
+        var token = session.RootElement.GetProperty("accessToken").GetString()!;
+        var expiresAt = session.RootElement.GetProperty("expiresAt").GetDateTimeOffset();
 
         var handler = new JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(token);
@@ -45,9 +50,9 @@ public class SignInTests(AccountApiFactory factory)
     [Fact]
     public async Task TwoSignIns_TwoDifferentTokens()
     {
-        await AccountHttp.CreateAccountAsync(_client, "marina", "secret");
-        var (t1, _) = await AccountHttp.SignInAsync(_client, "marina", "secret");
-        var (t2, _) = await AccountHttp.SignInAsync(_client, "marina", "secret");
+        await AccountHttp.CreateAccountAsync(_client, "two-tok", "secret");
+        var (t1, _) = await AccountHttp.SignInAsync(_client, "two-tok", "secret");
+        var (t2, _) = await AccountHttp.SignInAsync(_client, "two-tok", "secret");
         Assert.NotEqual(t1, t2);
     }
 }
