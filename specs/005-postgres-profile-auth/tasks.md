@@ -346,3 +346,15 @@ Task: "T060 .github/workflows/cd.yml"
 - `Kanban.Domain` не ссылается на Account, HTTP и PostgreSQL
 - Секреты (`KANBAN_JWT_SIGNING_KEY`, пароли ролей) в репозиторий не класть
 - Коммит — после каждой задачи или логической группы. Остановиться на checkpoint и проверить историю отдельно
+
+## Phase 9: Convergence
+
+- [ ] T068 Добавить `kanban-cli/tests/Kanban.Tests/Account/JournalTests.cs` по T050: события FR-017, очистка FR-020, без записи при чтении доски per US4/AC6 (Constitution II CRITICAL) (missing)
+- [ ] T069 Добавить `kanban-cli/tests/Kanban.Tests/Account/OperatorAuditTests.cs` по T051 и `contracts/operator-audit.md` per FR-019 (Constitution II CRITICAL) (missing)
+- [ ] T070 Добавить `kanban-cli/tests/Kanban.Tests/Account/StoreUnavailableTests.cs` по T056 через `AccountApiFactory.StopDatabaseAsync` per FR-022 и US5 (missing)
+- [ ] T071 Добавить `DisplayNameTests.cs` и `PasswordChangeTests.cs` по T044–T045 per US3 и FR-010–FR-011 (missing)
+- [ ] T072 Дополнить `ProfileTests.cs` и `BoardTests.cs` до сценариев T035–T036, включая DELETE карточки и колонки и `foreign_data` per FR-008 и FR-015 (partial)
+- [ ] T073 Довести `LiteralTextTests.cs` до 20 буквальных значений в нике, имени и заголовке карточки per SC-006 и T064 (partial)
+- [ ] T074 Расширить `MigrationRoleTests.cs`: откат `Down`, запрос API без схемы → `store_unavailable` per T057 и Constitution II (partial)
+- [ ] T075 Выровнять поиск колонки в `BoardWriter.DeleteColumnAsync` с `OrdinalIgnoreCase`, как при создании карточки, per FR-014 (partial)
+- [ ] T076 Добавить интеграционный тест: UPDATE `account.nick` отвергается триггером per FR-002 (partial)
