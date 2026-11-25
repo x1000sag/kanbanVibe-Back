@@ -1,4 +1,5 @@
 using System.Text;
+using Account.Domain;
 using Account.Infrastructure;
 using Kanban.Api.Account;
 using Kanban.Api.Controllers;
@@ -38,6 +39,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(accountOptions.JwtSigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                await AccountExceptionMiddleware.WriteRefusalAsync(
+                    context.HttpContext,
+                    RefusalCodes.NoActiveAccess,
+                    401);
+            },
+            OnAuthenticationFailed = context =>
+            {
+                context.NoResult();
+                throw new AccountRefusalException(RefusalCodes.NoActiveAccess);
+            },
         };
     });
 builder.Services.AddAuthorization();

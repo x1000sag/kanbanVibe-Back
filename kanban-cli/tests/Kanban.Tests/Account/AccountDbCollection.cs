@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace Kanban.Tests.Account;
 
 [CollectionDefinition("AccountDb", DisableParallelization = true)]

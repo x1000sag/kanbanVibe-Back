@@ -1,7 +1,29 @@
 services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}
+      OPERATOR_DB_PASSWORD: ${OPERATOR_DB_PASSWORD:?OPERATOR_DB_PASSWORD is required}
+    ports:
+      - "5432:5432"
+    volumes:
+      - kanban_account_data:/var/lib/postgresql/data
+
   api:
     build: .
     ports:
       - "5050:5050"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:5050
+      KANBAN_ACCOUNT_CONNECTION: Host=postgres;Port=5432;Database=kanban_account;Username=kanban_app;Password=${APP_DB_PASSWORD}
+      KANBAN_MIGRATOR_CONNECTION: Host=postgres;Port=5432;Database=kanban_account;Username=kanban_migrator;Password=${POSTGRES_PASSWORD}
+      KANBAN_OPERATOR_CONNECTION: Host=postgres;Port=5432;Database=kanban_account;Username=kanban_operator;Password=${OPERATOR_DB_PASSWORD}
+      KANBAN_JWT_SIGNING_KEY: ${KANBAN_JWT_SIGNING_KEY:?KANBAN_JWT_SIGNING_KEY is required}
+    depends_on:
+      - postgres
+
+volumes:
+  kanban_account_data:

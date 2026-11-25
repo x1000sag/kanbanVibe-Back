@@ -45,6 +45,9 @@ jobs:
           copy_publish "kanban-cli/src/Kanban.Api" "Kanban.Api"
           copy_publish "kanban-cli/src/Kanban.Cli" "Kanban.Cli"
           copy_publish "kanban-cli/src/UserProfile.Api" "UserProfile.Api"
+          cp Dockerfile "$stage/"
+          cp -r docker "$stage/docker"
+          cp docker-compose.yml "$stage/"
           rm -f kanban-win-x86.zip
           (cd "$stage" && zip -r "../../kanban-win-x86.zip" .)
 
