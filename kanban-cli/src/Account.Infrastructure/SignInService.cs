@@ -46,8 +46,10 @@ public sealed class SignInService
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
-            var account = await _db.Accounts.AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Nick == validNick, ct);
+            var account = TextRules.IsNickCharsetValid(validNick)
+                ? await _db.Accounts.AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.Nick == validNick, ct)
+                : null;
 
             if (account is null)
             {

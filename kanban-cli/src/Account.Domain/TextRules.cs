@@ -52,6 +52,31 @@ public static class TextRules
     public static bool IsNickLengthValid(string trimmedNick) =>
         RuneCount(trimmedNick) is >= NickMin and <= NickMax;
 
+    public static bool IsNickCharsetValid(string trimmedNick)
+    {
+        foreach (var rune in trimmedNick.EnumerateRunes())
+        {
+            if (!IsAllowedNickRune(rune))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsAllowedNickRune(Rune rune)
+    {
+        var value = rune.Value;
+        if (value is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9')
+        {
+            return true;
+        }
+
+        // Пробел, кавычки, «;» и «-» — знаки, которые спецификация ника уже принимает.
+        return value is ' ' or '\'' or '"' or ';' or '-';
+    }
+
     public static bool IsDisplayNameLengthValid(string trimmedDisplayName) =>
         RuneCount(trimmedDisplayName) is >= DisplayNameMin and <= DisplayNameMax;
 
