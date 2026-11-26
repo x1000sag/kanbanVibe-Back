@@ -5,7 +5,7 @@ public static class Registration
     public static (string Nick, string Password) Validate(string nick, string password)
     {
         var trimmedNick = TextRules.TrimEdgeWhitespace(nick ?? string.Empty);
-        if (!TextRules.IsNickLengthValid(trimmedNick))
+        if (!TextRules.IsNickLengthValid(trimmedNick) || !TextRules.IsNickCharsetValid(trimmedNick))
         {
             throw new AccountRefusalException(RefusalCodes.NickInvalid);
         }

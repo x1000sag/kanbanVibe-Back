@@ -89,7 +89,7 @@ curl -s -H 'Content-Type: application/json' \
   -d '{"nick":"marina","password":"не-тот"}' \
   http://localhost:5050/v1/sessions
 curl -s -H 'Content-Type: application/json' \
-  -d '{"nick":"нет-такого","password":"любой-пароль"}' \
+  -d '{"nick":"net-takogo","password":"любой-пароль"}' \
   http://localhost:5050/v1/sessions
 ```
 
@@ -142,14 +142,14 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:5050/v1/accounts/mari
 
 Ожидание: есть успешный вход, неудачный вход в `marina`, завершение доступа, смена имени, смена пароля, отказ чужого доступа (у того, кому отказали), удаление — если его выполнили. У входа заполнен `source`. Пароля и старого имени в записях нет. Обычное чтение доски новой строки не добавляет.
 
-Неудачный вход `нет-такого` в этом журнале отсутствует. Его видно оператору:
+Неудачный вход `net-takogo` в этом журнале отсутствует. Его видно оператору:
 
 ```bash
 psql "$KANBAN_OPERATOR_CONNECTION" -c \
   "SELECT occurred_at, attempted_nick, event_type, outcome, source FROM unowned_audit_event ORDER BY occurred_at, event_id;"
 ```
 
-Ожидание: строка с ником `нет-такого`, результатом `failure` и без пароля. После создания учётки `нет-такого` эта строка в её `GET .../journal` не появляется.
+Ожидание: строка с ником `net-takogo`, результатом `failure` и без пароля. После создания учётки `net-takogo` эта строка в её `GET .../journal` не появляется.
 
 ### Срок 12 часов
 
@@ -162,7 +162,7 @@ psql "$KANBAN_OPERATOR_CONNECTION" -c \
 ```bash
 docker compose stop postgres
 curl -s -w '\n%{http_code}\n' -H 'Content-Type: application/json' \
-  -d '{"nick":"новая","password":"секрет"}' \
+  -d '{"nick":"novaya","password":"секрет"}' \
   http://localhost:5050/v1/accounts
 ```
 

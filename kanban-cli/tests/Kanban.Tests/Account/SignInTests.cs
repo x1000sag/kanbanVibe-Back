@@ -2,6 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Account.Infrastructure;
+using Npgsql;
 using Xunit;
 
 namespace Kanban.Tests.Account;
@@ -45,6 +47,53 @@ public class SignInTests(AccountApiFactory factory)
         Assert.NotNull(jwt.Id);
         Assert.True((jwt.ValidTo - jwt.ValidFrom).TotalSeconds <= 43200);
         Assert.True(expiresAt <= jwt.ValidTo);
+    }
+
+    [Fact]
+    public async Task CyrillicNick_SignInFailedAndDoesNotOpenAccess()
+    {
+        const string nick = "нет-такого";
+        var response = await _client.PostAsJsonAsync(
+            "/v1/sessions",
+            new { nick, password = "после" },
+            AccountHttp.Json);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("sign_in_failed", JsonDocument.Parse(body).RootElement.GetProperty("code").GetString());
+        Assert.DoesNotContain("accessToken", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StoredCyrillicNick_IsNotIdentified()
+    {
+        const string nick = "уже-есть";
+        const string password = "после";
+        var hash = new AccountPasswordHasher().Hash(password);
+
+        await using (var conn = new NpgsqlConnection(factory.AppConnection))
+        {
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO account (account_id, nick, display_name, password_hash)
+                VALUES (@id, @nick, @nick, @hash)
+                """;
+            cmd.Parameters.AddWithValue("id", Guid.NewGuid());
+            cmd.Parameters.AddWithValue("nick", nick);
+            cmd.Parameters.AddWithValue("hash", hash);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var response = await _client.PostAsJsonAsync(
+            "/v1/sessions",
+            new { nick, password },
+            AccountHttp.Json);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("sign_in_failed", JsonDocument.Parse(body).RootElement.GetProperty("code").GetString());
+        Assert.DoesNotContain("accessToken", body, StringComparison.Ordinal);
     }
 
     [Fact]
