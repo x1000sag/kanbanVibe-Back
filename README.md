@@ -16,12 +16,14 @@ dotnet run --project src/Kanban.Api
 
 API по умолчанию: **http://localhost:5050** (профиль `http` в `launchSettings.json`).
 
-### Эндпоинты доски
+### Эндпоинты
 
-- `GET /api/board` — получить доску
-- `PUT /api/board` — сохранить доску
+- `GET/PUT /api/board` — локальная JSON-доска (CLI и переходный API), см. `data/board.json`
+- `/v1/*` — учётка, сессии, доска владеля в PostgreSQL (см. `specs/005-postgres-profile-auth/`)
 
-Дополнительно в solution: `Kanban.Cli`, `UserProfile.Api` (SQLite).
+Перед API задайте `KANBAN_*` (см. `specs/005-postgres-profile-auth/quickstart.md`) и поднимите `docker compose up postgres`.
+
+Дополнительно в solution: `Kanban.Cli`, `UserProfile.Api` (SQLite, маршрут `/profiles` — не учётка `/v1`).
 
 ### Тесты
 
