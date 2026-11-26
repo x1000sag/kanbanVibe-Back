@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Npgsql;
 using Xunit;
 
 namespace Kanban.Tests.Account;
@@ -49,6 +50,35 @@ public class RegistrationTests(AccountApiFactory factory)
 
         var badPwd = await AccountHttp.CreateAccountAsync(_client, "nick1", "");
         Assert.Equal("password_invalid", await AccountHttp.ReadErrorCodeAsync(badPwd));
+    }
+
+    [Fact]
+    public async Task QuoteAndSemicolonNick_IsCreated()
+    {
+        var response = await AccountHttp.CreateAccountAsync(_client, "a';drop", "secret");
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("/v1/accounts/a';drop", response.Headers.Location?.ToString());
+    }
+
+    [Theory]
+    [InlineData("нет-такого")]
+    [InlineData("bad@nick")]
+    public async Task NickOutsideCharset_IsNickInvalidAndStoresNothing(string nick)
+    {
+        var response = await AccountHttp.CreateAccountAsync(_client, nick, "после");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.Equal("nick_invalid", await AccountHttp.ReadErrorCodeAsync(response));
+
+        await using var conn = new NpgsqlConnection(factory.AppConnection);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM account WHERE nick = @nick";
+        cmd.Parameters.AddWithValue("nick", nick);
+        var count = (long)(await cmd.ExecuteScalarAsync())!;
+        Assert.Equal(0L, count);
     }
 
     [Fact]

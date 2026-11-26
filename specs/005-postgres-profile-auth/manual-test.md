@@ -432,7 +432,7 @@ PY
 - Учётка `marina` не меняется, учётка `нет-такого` этим входом не создаётся.
 - Паролей в телах нет.
 
-Пустой пароль и ник длиннее 64 символов на входе тоже дают `sign_in_failed`. Коды `password_invalid` и `nick_invalid` относятся к созданию учётки.
+Пустой пароль и ник длиннее 64 символов на входе тоже дают `sign_in_failed`. Символ ника вне набора на входе тоже даёт `sign_in_failed` и доступ не открывает. Коды `password_invalid` и `nick_invalid` относятся к созданию учётки.
 
 ### Шаг 17. Неизвестный ник виден оператору и не содержит пароль
 
@@ -454,12 +454,15 @@ docker compose exec -T -e PGPASSWORD="$OPERATOR_DB_PASSWORD" postgres \
 - `source` заполнен, в обеих строках совпадает и не содержит пароль.
 - Колонки с паролем в выдаче нет.
 
-### Шаг 18. После отказа ник всё ещё свободен
+### Шаг 18. Ник вне набора не создаёт учётку
 
 **Действие**
 
 ```bash
 api POST /v1/accounts '{"nick":"нет-такого","password":"после"}'
+docker compose exec -T -e PGPASSWORD="$APP_DB_PASSWORD" postgres \
+  psql -w -h 127.0.0.1 -U kanban_app -d kanban_account -c \
+  "SELECT count(*) FROM account WHERE nick = 'нет-такого';"
 docker compose exec -T -e PGPASSWORD="$OPERATOR_DB_PASSWORD" postgres \
   psql -w -h 127.0.0.1 -U kanban_operator -d kanban_account -c \
   "SELECT count(*) FROM unowned_audit_event WHERE attempted_nick = 'нет-такого';"
@@ -467,8 +470,10 @@ docker compose exec -T -e PGPASSWORD="$OPERATOR_DB_PASSWORD" postgres \
 
 **Ожидаемый результат**
 
-- Создание: `201`. Значит, неудачные входы шага 16 учётку не создали. Иначе ответ был бы `nick_taken`.
-- Счётчик оператора по этому нику по-прежнему 2. Создание учётки старые строки не стирает.
+- Создание `нет-такого`: `400` и ровно `{"code":"nick_invalid"}`. Не `201` и не `503` `store_unavailable`.
+- Строки `location:` нет: заголовок `Location` не ставится, строка учётки не пишется.
+- Счётчик `account` по нику `нет-такого` равен 0.
+- Счётчик оператора по нику `нет-такого` по-прежнему 2. Отказ создания строки входа шага 16 не стирает.
 
 ### Шаг 19. Успешный вход
 
