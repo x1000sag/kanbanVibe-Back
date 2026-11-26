@@ -2,7 +2,6 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <IsPublishable>false</IsPublishable>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -25,4 +24,18 @@
     <ProjectReference Include="../../src/UserProfile.Domain/UserProfile.Domain.csproj" />
     <ProjectReference Include="../../src/UserProfile.Infrastructure/UserProfile.Infrastructure.csproj" />
   </ItemGroup>
+  <!--
+    Kanban.Api и UserProfile.Api оба кладут appsettings.json в корень публикации.
+    У ссылающегося тестового проекта это один RelativePath и NETSDK1152.
+    В выводе тестов раскладываем их по каталогу проекта-источника.
+  -->
+  <Target Name="SeparateCollidingApiSettingsInTestPublish"
+          AfterTargets="ComputeFilesToPublish"
+          BeforeTargets="_ComputeResolvedFilesToPublishTypes;_HandleFileConflictsForPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Condition="'%(Filename)%(Extension)' == 'appsettings.json' or '%(Filename)%(Extension)' == 'appsettings.Development.json'">
+        <RelativePath>referenced/$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName('%(Identity)'))))/%(Filename)%(Extension)</RelativePath>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 </Project>
